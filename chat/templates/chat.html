@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block title %}
+chat room
+{% endblock %}
+
+{% block content %}
+<textarea id="chat-text" cols="50" rows="10"></textarea> <br>
+<input type="text" id="chat-input"> <br>
+<button id="button">Send</button>
+<script>
+    var ws = new WebSocket(
+        "ws://" + window.location.host + "/ws/chat/"
+    );
+    ws.onmessage = function(event){
+
+        var data = JSON.parse(event.data);
+        var message = data.message;
+        document.querySelector("#chat-text").value += (message + "\n");
+    }
+
+    var text_input = document.querySelector("#chat-input");
+
+    document.querySelector("#button").onclick = function(e){
+        var input_message = text_input.value;
+        ws.send(JSON.stringify({
+            "message": input_message
+        }));
+        text_input.value = "";
+    }
+
+
+</script>
+{% endblock %}
