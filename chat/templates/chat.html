@@ -5,29 +5,40 @@ chat room
 {% endblock %}
 
 {% block content %}
-<textarea id="chat-text" cols="50" rows="10"></textarea> <br>
+<textarea id="chat-text" rows=12 cols="20"></textarea> <br>
 <input type="text" id="chat-input"> <br>
 <button id="button">Send</button>
+{{ room_name|json_script:"room-name" }}
 <script>
-    var ws = new WebSocket(
-        "ws://" + window.location.host + "/ws/chat/"
-    );
+
+    const roomName = JSON.parse(document.getElementById('room-name').textContent);
+    var ws = new WebSocket("ws://" + window.location.host + "/ws/chat/" + roomName + "/");
+
+    var chatInput = document.querySelector("#chat-input");
+    createMessage = function(msg){
+        document.querySelector("#chat-text").value += (msg + "\n");
+    }
     ws.onmessage = function(event){
-
         var data = JSON.parse(event.data);
-        var message = data.message;
-        document.querySelector("#chat-text").value += (message + "\n");
+        if (data.command === 'messages'){
+            var messages = data.messages;
+            for (let i=0; i<messages.length; i++){
+                createMessage(messages[i]);
+            }
+        }
+        else if (data.command === 'message'){
+            var message = data.message;
+            createMessage(message);
+        }
     }
-
-    var text_input = document.querySelector("#chat-input");
-
     document.querySelector("#button").onclick = function(e){
-        var input_message = text_input.value;
+        var message = chatInput.value;
         ws.send(JSON.stringify({
-            "message": input_message
+            "message": message
         }));
-        text_input.value = "";
+        chatInput.value = "";
     }
+
 
 
 </script>
