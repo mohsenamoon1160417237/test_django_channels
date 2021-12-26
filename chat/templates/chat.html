@@ -9,9 +9,12 @@ chat room
 <input type="text" id="chat-input"> <br>
 <button id="button">Send</button>
 {{ room_name|json_script:"room-name" }}
+{{ username|json_script:"current-username" }}
 <script>
 
     const roomName = JSON.parse(document.getElementById('room-name').textContent);
+    const curUserName = JSON.parse(document.getElementById('current-username').textContent);
+    console.log(curUserName);
     var ws = new WebSocket("ws://" + window.location.host + "/ws/chat/" + roomName + "/");
 
     var chatInput = document.querySelector("#chat-input");
@@ -34,12 +37,11 @@ chat room
     document.querySelector("#button").onclick = function(e){
         var message = chatInput.value;
         ws.send(JSON.stringify({
+            "username": curUserName,
             "message": message
         }));
         chatInput.value = "";
     }
-
-
 
 </script>
 {% endblock %}

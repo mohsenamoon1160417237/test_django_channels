@@ -15,9 +15,12 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('rand_int.urls')),
     path('chat/', include("chat.urls")),
-]
+    path('upload/', include('upload_file.urls')),
+] + static(settings.STATIC_URL , document_root=settings.STATIC_ROOT)

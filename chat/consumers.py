@@ -1,28 +1,63 @@
-from channels.generic.websocket import WebsocketConsumer
+from channels.generic.websocket import AsyncWebsocketConsumer
 import json
 import asyncio
 from asgiref.sync import async_to_sync
+from channels.db import database_sync_to_async
 from .models import ChatRoom, Message
+from django.shortcuts import get_object_or_404
+from django.contrib.auth.models import User
 
 
-class ChatConsumer(WebsocketConsumer):
+@database_sync_to_async
+def get_or_create_chat_room(room_name):
+    room = ChatRoom.objects.get_or_create(name=room_name)
+    room = room[0]
+    return room
 
-    def connect(self):
+
+@database_sync_to_async
+def get_chat_room_mesages(room):
+    messages = Message.objects.filter(chat_room=room)
+    msg_list = []
+    for x in messages:
+        msg_list.append(x.text)
+    return msg_list
+
+
+@database_sync_to_async
+def create_message(room, text, user):
+    Message.objects.create(chat_room=room, text=text, user=user)
+
+
+@database_sync_to_async
+def get_chat_room_users(room):
+    return room.users.all()
+
+
+@database_sync_to_async
+def get_user(username):
+    return get_object_or_404(User, username=username)
+
+
+@database_sync_to_async
+def get_message_text(msg):
+    return msg.text
+
+
+class ChatConsumer(AsyncWebsocketConsumer):
+
+    async def connect(self):
 
         self.room_name = self.scope['url_route']['kwargs']['room_name']
-        room = ChatRoom.objects.get_or_create(name=self.room_name)
-        self.room = room[0]
-        messages = Message.objects.filter(chat_room=self.room)
-        msg_list = []
-        for x in messages:
-            msg_list.append(x.text)
+        self.room = await get_or_create_chat_room(self.room_name)
+        msg_list = await get_chat_room_mesages(self.room)
         self.room_group_name = "chat_%s" % self.room_name
-        async_to_sync(self.channel_layer.group_add)(
+        await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
         )
-        self.accept()
-        async_to_sync(self.channel_layer.group_send)(
+        await self.accept()
+        await self.channel_layer.group_send(
             self.room_group_name,
             {
                 'type': 'load_messages',
@@ -30,21 +65,21 @@ class ChatConsumer(WebsocketConsumer):
             }
         )
 
-    def disconnect(self, code):
+    async def disconnect(self, code):
 
-        async_to_sync(self.channel_layer.group_discard)(
+        await self.channel_layer.group_discard(
             self.room_group_name,
             self.channel_name
         )
 
-    def receive(self, text_data=None, bytes_data=None):
+    async def receive(self, text_data=None, bytes_data=None):
 
         data = json.loads(text_data)
+        username = data['username']
+        user = await get_user(username)
         message = data['message']
-        Message.objects.create(chat_room=self.room,
-                               text=message)
-
-        async_to_sync(self.channel_layer.group_send)(
+        await create_message(self.room, message, user)
+        await self.channel_layer.group_send(
             self.room_group_name,
             {
                 'type': 'new_message',
@@ -52,18 +87,18 @@ class ChatConsumer(WebsocketConsumer):
             }
         )
 
-    def load_messages(self, event):
+    async def load_messages(self, event):
 
         messages = event['messages']
-        self.send(json.dumps({
+        await self.send(json.dumps({
             'command': 'messages',
             'messages': messages
         }))
 
-    def new_message(self, event):
+    async def new_message(self, event):
 
         message = event['message']
-        self.send(json.dumps({
+        await self.send(json.dumps({
             'command': 'message',
             'message': message
         }))

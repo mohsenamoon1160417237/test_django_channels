@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent
@@ -40,6 +41,9 @@ INSTALLED_APPS = [
     'rand_int',
     'channels',
     'chat',
+    'channels_redis',
+    'chunked_upload',
+    'upload_file',
 ]
 
 MIDDLEWARE = [
@@ -121,7 +125,6 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 
-import os
 
 STATIC_URL = '/static/'
 STATIC_ROOT = 'static'
@@ -129,8 +132,13 @@ STATICFILES_DIR = [
     os.path.join(BASE_DIR, 'test_channels/static')
 ]
 
+MEDIA_ROOT = 'media/'
+
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer"
-    }
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("localhost", 6379)],
+        },
+    },
 }
